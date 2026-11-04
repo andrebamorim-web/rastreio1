@@ -1,0 +1,41 @@
+name: Gerar APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Recuperar chave de assinatura
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > rastreio.jks
+
+      - name: Compilar
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          ADMIN_PIN: ${{ secrets.ADMIN_PIN }}
+          DEVICE_LABEL: ${{ vars.DEVICE_LABEL }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Publicar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rastreio-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
